@@ -1,0 +1,132 @@
+// routes/perusahaanRoutes.js
+const express = require("express");
+const router = express.Router();
+const { google } = require("googleapis");
+const { getAuth } = require("../utils/googleAuth");
+
+const SHEET_NAME = "data_perusahaan";
+
+// Helper to get all rows
+const getSheetData = async (sheets) => {
+  const response = await sheets.spreadsheets.values.get({
+    spreadsheetId: process.env.SPREADSHEET_ID,
+    range: `${SHEET_NAME}`,
+  });
+  return response.data.values;
+};
+
+// GET all perusahaan
+router.get("/", async (req, res) => {
+  try {
+    const auth = await getAuth();
+    const sheets = google.sheets({ version: "v4", auth });
+    const rows = await getSheetData(sheets);
+
+    if (!rows || rows.length < 2) return res.status(200).json([]);
+
+    const headers = rows[0];
+    const data = rows.slice(1).map((row) => {
+      const obj = {};
+      headers.forEach((key, i) => {
+        obj[key] = row[i] || "";
+      });
+      return obj;
+    });
+
+    res.json(data);
+  } catch (err) {
+    console.error("GET perusahaan error:", err);
+    res.status(500).json({ error: "Failed to fetch data_perusahaan" });
+  }
+});
+
+// POST new perusahaan
+router.post("/", async (req, res) => {
+  try {
+    const newData = req.body;
+    const auth = await getAuth();
+    const sheets = google.sheets({ version: "v4", auth });
+    const rows = await getSheetData(sheets);
+    const headers = rows[0];
+
+    const values = headers.map((h) => newData[h] || "");
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: process.env.SPREADSHEET_ID,
+      range: `${SHEET_NAME}`,
+      valueInputOption: "USER_ENTERED",
+      resource: { values: [values] },
+    });
+
+    res.status(201).json({ message: "Perusahaan added successfully" });
+  } catch (err) {
+    console.error("POST perusahaan error:", err);
+    res.status(500).json({ error: "Failed to add perusahaan" });
+  }
+});
+
+// PUT update perusahaan by id_perusahaan
+router.put("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const newData = req.body;
+
+    const auth = await getAuth();
+    const sheets = google.sheets({ version: "v4", auth });
+    const rows = await getSheetData(sheets);
+    const headers = rows[0];
+
+    const rowIndex = rows.findIndex((row, i) => i > 0 && row[0] === id);
+    if (rowIndex === -1) return res.status(404).json({ error: "Perusahaan not found" });
+
+    const values = headers.map((h) => newData[h] || "");
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: process.env.SPREADSHEET_ID,
+      range: `${SHEET_NAME}!A${rowIndex + 1}`,
+      valueInputOption: "USER_ENTERED",
+      resource: { values: [values] },
+    });
+
+    res.json({ message: "Perusahaan updated successfully" });
+  } catch (err) {
+    console.error("PUT perusahaan error:", err);
+    res.status(500).json({ error: "Failed to update perusahaan" });
+  }
+});
+
+// DELETE perusahaan by id_perusahaan
+router.delete("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const auth = await getAuth();
+    const sheets = google.sheets({ version: "v4", auth });
+    const rows = await getSheetData(sheets);
+
+    const rowIndex = rows.findIndex((row, i) => i > 0 && row[0] === id);
+    if (rowIndex === -1) return res.status(404).json({ error: "Perusahaan not found" });
+
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: process.env.SPREADSHEET_ID,
+      resource: {
+        requests: [
+          {
+            deleteDimension: {
+              range: {
+                sheetId: 0,
+                dimension: "ROWS",
+                startIndex: rowIndex,
+                endIndex: rowIndex + 1,
+              },
+            },
+          },
+        ],
+      },
+    });
+
+    res.json({ message: "Perusahaan deleted successfully" });
+  } catch (err) {
+    console.error("DELETE perusahaan error:", err);
+    res.status(500).json({ error: "Failed to delete perusahaan" });
+  }
+});
+
+module.exports = router;
