@@ -1,15 +1,20 @@
-const { GoogleSpreadsheet } = require('google-spreadsheet');
-const creds = {
-  client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-  private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-};
+const { google } = require("googleapis");
 
-async function accessSpreadsheet() {
-  const doc = new GoogleSpreadsheet(process.env.SPREADSHEET_ID);
-  await doc.useServiceAccountAuth(creds);
-  await doc.loadInfo(); // Load metadata
+const auth = new google.auth.JWT(
+  process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+  null,
+  process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+  ["https://www.googleapis.com/auth/spreadsheets"]
+);
 
-  return doc;
+const sheets = google.sheets({ version: "v4", auth });
+
+async function getSheetData(sheetName) {
+  const response = await sheets.spreadsheets.values.get({
+    spreadsheetId: process.env.SPREADSHEET_ID,
+    range: sheetName,
+  });
+  return response.data.values;
 }
 
-module.exports = accessSpreadsheet;
+module.exports = { getSheetData };
