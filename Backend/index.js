@@ -1,4 +1,3 @@
-// index.js
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
@@ -10,6 +9,7 @@ const produkRoutes = require("./routes/produkRoutes");
 const quotationRoutes = require("./routes/quotationLineitemsRoutes");
 const invoiceLineitemsRoutes = require("./routes/invoiceLineitemsRoutes");
 const invoiceRoutes = require("./routes/invoiceRoutes");
+const testSheetRoute = require("./routes/testSheetRoute"); // ← Tambahan
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -25,6 +25,7 @@ app.use("/api/produk", produkRoutes);
 app.use("/api/quotation", quotationRoutes);
 app.use("/api/invoice-lineitems", invoiceLineitemsRoutes);
 app.use("/api/invoice", invoiceRoutes);
+app.use("/api/test-sheet", testSheetRoute); // ← Tambahan
 
 app.get("/", (req, res) => {
   res.send("WILLSKY CRM Backend is running...");
